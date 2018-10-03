@@ -41,7 +41,8 @@ def predict(args):
     # load base model
     if args.model_name == 'vgg16':
         base_model = vgg16.VGG16(include_top=False, weights=None, input_shape = (224,224,3)) # need specify input_shape
-        preprocess_input = inception_v3.preprocess_input  # some bug on previous keras
+        # preprocess_input = inception_v3.preprocess_input
+        # preprocess_input = vgg16.preprocess_input
 
 
     test_datagen = image.ImageDataGenerator(
@@ -67,7 +68,6 @@ def predict(args):
         x = Dense(256, activation='relu', name='fc2-pretrain')(x)
         x = Dropout(0.5, name='dropout')(x)
 
-
     predictions = Dense(args.num_class, activation='softmax', name='predictions')(x)
 
     model = Model(inputs=base_model.input, outputs=predictions)
@@ -89,11 +89,14 @@ def predict(args):
             # img = img / 255.0
             prob = model.predict(img)
             prob_label = prob.argmax()
+            predicted_labels.append(prob_label)
+            true_label = int(os.path.basename(folder).replace('/', ''))
             true_labels.append(true_label)
 
 
     print(confusion_matrix(true_labels, predicted_labels))
     print(classification_report(true_labels, predicted_labels))
+
 
 if __name__ == "__main__":
     args = parse_args()
