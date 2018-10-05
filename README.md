@@ -24,4 +24,4 @@ download car dataset, prepare the data for the model.
 
 ## Training
 
-run ```python train.py --parameters```
+run ```python train.py -t /path/to/car_dataset/train/ -v /path/to/car_dataset/test/ -m vgg16 -s car196 -e 20 -n 196```
