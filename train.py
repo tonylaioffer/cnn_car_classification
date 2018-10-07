@@ -35,7 +35,7 @@ def parse_args():
     ap.add_argument("-n","--num_class",type=int, default=2,help="(required) number of classes to be trained")
     ap.add_argument("-r","--img_size",type=int, default=224, help="image width/height size")
     ap.add_argument("-m","--model_name",type=str, default='vgg16', help="model name")
-    ap.add_argument("-s","--suffix",type=str, default='dingyun', help="suffix for model name model name")
+    ap.add_argument("-s","--suffix",type=str, default='laioffer', help="suffix for model name model name")
     ap.add_argument("-b","--batch_size",type=int, default=16, help="training batch size")
     ap.add_argument("-e","--epochs", type=int, default=30, help="training epochs")
     # ap.add_argument("-g","--epochs", type=int, default=20, help="training epochs")
@@ -92,7 +92,6 @@ def init_model(args):
     for layer in base_model.layers:
         layer.trainable = False
 
-
     x = base_model.output
     if args.model_name == 'vgg16':
         x = Flatten(name='flatten')(x)
@@ -139,12 +138,10 @@ def fine_tune(model, train_generator, validation_generator, args):
     for layer in model.layers[-1*trainable_layers:]:
         layer.trainable = True
 
-    # pretrain_model_name = 'dingyun_finetuned_' + args.model_name + '_' + str(args.num_class) + '_model.h5'
     finetune_model_name = 'finetuned_{}_{}_{}_{}.h5'.format(args.model_name, args.num_class, args.epochs, args.suffix)
     tensorboard = TensorBoard(log_dir="logs/{}_finetune_{}".format(args.model_name, time()), histogram_freq=0, write_graph=True)
     checkpoint = ModelCheckpoint(finetune_model_name, monitor='val_acc', verbose=1, save_best_only=True, save_weights_only=False, mode='auto', period=1)
     callbacks_list = [checkpoint, tensorboard]
-
 
     model.compile(loss="categorical_crossentropy", optimizer=optimizers.SGD(lr=0.0001, momentum=0.9),metrics=["accuracy"])
 
@@ -158,6 +155,7 @@ def fine_tune(model, train_generator, validation_generator, args):
         validation_data = validation_generator,
         validation_steps=validationSteps)
     # return model
+
 
 if __name__ == "__main__":
     args = parse_args()
