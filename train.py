@@ -161,7 +161,16 @@ def train(model, train_generator, validation_generator, args):
 
 
 def fine_tune(model, train_generator, validation_generator, args):
-
+    """
+    fine tune the model
+    parms:
+        model: initialized model
+        train_generator: training data generator
+        validation_generator: validation data generator
+        args: parsed command line arguments
+    return:
+    """
+    # for specific architectures, define number of trainable layers
     if args.model_name == 'vgg16':
         trainable_layers = 6
 
