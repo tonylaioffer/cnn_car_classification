@@ -24,7 +24,13 @@ from keras import backend as K
 K.set_image_dim_ordering('tf')
 # K.set_learning_phase(0)
 
+
 def parse_args():
+    """
+    parse command line parameters
+    output:
+        args: parsed arguments
+    """
     ap = argparse.ArgumentParser()
     # ap.add_argument("-image", "--image", type=str, default='test.jpg',help="Path of test image")
     ap.add_argument("-test","--test_dir",type=str, required=True, help="(required) the test data directory")

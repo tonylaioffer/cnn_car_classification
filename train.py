@@ -29,6 +29,11 @@ K.set_image_dim_ordering('tf')
 ##################################################################################################################################
 
 def parse_args():
+    """
+    parse command line parameters
+    return:
+        args: parsed commandline arguments
+    """
     ap = argparse.ArgumentParser()
     ap.add_argument("-t","--train_dir",type=str, required=True,help="(required) the train data directory")
     ap.add_argument("-v","--val_dir",type=str, required=True,help="(required) the validation data directory")
@@ -44,6 +49,15 @@ def parse_args():
     return args
 
 def init_model(args):
+    """
+    initialize cnn model and training and validation data generator
+    parms:
+        args: parsed commandline arguments
+    return:
+        model: initialized model
+        train_generator: training data generator
+        validation_generator: validation data generator
+    """
     batch_size = args.batch_size
 
     print('loading the model and the pre-trained weights...')
@@ -51,8 +65,12 @@ def init_model(args):
     # load base model
     if args.model_name == 'vgg16':
         base_model = vgg16.VGG16(include_top=False, weights='imagenet', input_shape = (224,224,3)) # need specify input_shape
-        preprocess_input = inception_v3.preprocess_input
+        # this preprocess_input is the default preprocess func for given network, you can change it or implement your own 
+        # use inception_v3 preprocess for vgg16, it seems that it works better than vgg16.preprocess_input
+        preprocess_input = inception_v3.preprocess_input 
 
+    # initalize training image data generator
+    # you can also specify data augmentation here
     train_datagen = image.ImageDataGenerator(
         # width_shift_range=0.1,
         # height_shift_range=0.1,
@@ -67,7 +85,9 @@ def init_model(args):
         horizontal_flip=True
         )
 
-    test_datagen = image.ImageDataGenerator(
+    # initalize validation image data generator
+    # you can also specify data augmentation here
+    validation_datagen = image.ImageDataGenerator(
         # samplewise_center=True,
         # samplewise_std_normalization=True
         # rescale=1./255
@@ -81,7 +101,7 @@ def init_model(args):
         batch_size=batch_size,
         class_mode='categorical')
 
-    validation_generator = test_datagen.flow_from_directory(
+    validation_generator = validation_datagen.flow_from_directory(
         args.val_dir,
         # color_mode='grayscale',  # 'rgb'
         target_size=(args.img_size, args.img_size),
@@ -92,6 +112,7 @@ def init_model(args):
     for layer in base_model.layers:
         layer.trainable = False
 
+    # added some customized layers for your own data
     x = base_model.output
     if args.model_name == 'vgg16':
         x = Flatten(name='flatten')(x)
@@ -99,6 +120,7 @@ def init_model(args):
         x = Dense(256, activation='relu', name='fc2-pretrain')(x)
         x = Dropout(0.5, name='dropout')(x)
 
+    # added softmax layer
     predictions = Dense(args.num_class, activation='softmax', name='predictions')(x)
 
     model = Model(inputs=base_model.input, outputs=predictions)
@@ -108,11 +130,22 @@ def init_model(args):
 
 
 def train(model, train_generator, validation_generator, args):
-
+    """
+    train the model
+    parms:
+        model: initialized model
+        train_generator: training data generator
+        validation_generator: validation data generator
+        args: parsed command line arguments
+    return:
+    """
+    # define number of steps/iterators per epoch
     stepsPerEpoch = train_generator.samples / args.batch_size
     validationSteps= validation_generator.samples / args.batch_size
 
+    # save the snapshot of the model to local drive
     pretrain_model_name = 'pretrained_{}_{}_{}_{}.h5'.format(args.model_name, args.num_class, args.epochs, args.suffix)
+    # visualize the training process
     tensorboard = TensorBoard(log_dir="logs/{}_pretrain_{}".format(args.model_name, time()), histogram_freq=0, write_graph=True)
     checkpoint = ModelCheckpoint(pretrain_model_name, monitor='val_acc', verbose=1, save_best_only=True, save_weights_only=False, mode='auto', period=1)
     callbacks_list = [checkpoint, tensorboard]
