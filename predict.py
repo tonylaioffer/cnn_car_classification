@@ -48,7 +48,13 @@ def predict(args):
     if args.model_name == 'vgg16':
         base_model = vgg16.VGG16(include_top=False, weights=None, input_shape = (224,224,3)) # need specify input_shape
         # preprocess_input = inception_v3.preprocess_input
-        # preprocess_input = vgg16.preprocess_input
+        preprocess_input = vgg16.preprocess_input
+    elif args.model_name == 'inception_v3':
+        base_model = inception_v3.InceptionV3(include_top=False, weights=None, input_shape = (224,224,3)) # need specify input_shape
+        preprocess_input = inception_v3.preprocess_input
+    elif args.model_name == 'resnet50':
+        base_model = resnet50.ResNet50(include_top=False, weights=None, input_shape = (224,224,3)) # need specify input_shape
+        preprocess_input = resnet50.preprocess_input
 
 
     test_datagen = image.ImageDataGenerator(
@@ -73,6 +79,12 @@ def predict(args):
         x = Dense(512, activation='relu', name='fc1-pretrain')(x)
         x = Dense(256, activation='relu', name='fc2-pretrain')(x)
         x = Dropout(0.5, name='dropout')(x)
+    elif args.model_name == 'inception_v3':
+        x = GlobalAveragePooling2D(name='avg_pool')(x)
+        x = Dense(256, activation='relu', name='fc1-pretrain')(x)
+    elif args.model_name == 'resnet50':
+        x = GlobalAveragePooling2D(name='avg_pool')(x)
+        x = Dense(256, activation='relu', name='fc1-pretrain')(x)
 
     predictions = Dense(args.num_class, activation='softmax', name='predictions')(x)
 
@@ -98,7 +110,6 @@ def predict(args):
             predicted_labels.append(prob_label)
             true_label = int(os.path.basename(folder).replace('/', ''))
             true_labels.append(true_label)
-
 
     print(confusion_matrix(true_labels, predicted_labels))
     print(classification_report(true_labels, predicted_labels))

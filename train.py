@@ -14,6 +14,7 @@ from skimage import exposure, color
 
 from keras import backend as K
 K.set_image_dim_ordering('tf')
+K.clear_session()
 # K.set_learning_phase(1)
 
 #################################################################################################################################
@@ -67,7 +68,13 @@ def init_model(args):
         base_model = vgg16.VGG16(include_top=False, weights='imagenet', input_shape = (224,224,3)) # need specify input_shape
         # this preprocess_input is the default preprocess func for given network, you can change it or implement your own 
         # use inception_v3 preprocess for vgg16, it seems that it works better than vgg16.preprocess_input
-        preprocess_input = inception_v3.preprocess_input 
+        preprocess_input = vgg16.preprocess_input
+    elif args.model_name == 'inception_v3':
+        base_model = inception_v3.InceptionV3(include_top=False, weights='imagenet', input_shape = (224,224,3)) # need specify input_shape
+        preprocess_input = inception_v3.preprocess_input
+    elif args.model_name == 'resnet50':
+        base_model = resnet50.ResNet50(include_top=False, weights='imagenet', input_shape = (224,224,3)) # need specify input_shape
+        preprocess_input = resnet50.preprocess_input
 
     # initalize training image data generator
     # you can also specify data augmentation here
@@ -119,6 +126,12 @@ def init_model(args):
         x = Dense(512, activation='relu', name='fc1-pretrain')(x)
         x = Dense(256, activation='relu', name='fc2-pretrain')(x)
         x = Dropout(0.5, name='dropout')(x)
+    elif args.model_name == 'inception_v3':
+        x = GlobalAveragePooling2D(name='avg_pool')(x)
+        x = Dense(256, activation='relu', name='fc1-pretrain')(x)
+    elif args.model_name == 'resnet50':
+        x = GlobalAveragePooling2D(name='avg_pool')(x)
+        x = Dense(256, activation='relu', name='fc1-pretrain')(x)
 
     # added softmax layer
     predictions = Dense(args.num_class, activation='softmax', name='predictions')(x)
@@ -173,6 +186,10 @@ def fine_tune(model, train_generator, validation_generator, args):
     # for specific architectures, define number of trainable layers
     if args.model_name == 'vgg16':
         trainable_layers = 6
+    elif args.model_name == 'inception_v3':
+        trainable_layers = 35
+    elif args.model_name == 'resnet50':
+        trainable_layers = 12
 
     for layer in model.layers[:-1*trainable_layers]:
         layer.trainable = False
