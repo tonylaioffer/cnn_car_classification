@@ -6,7 +6,7 @@ from keras.applications import inception_v3
 from keras.layers import GlobalAveragePooling2D, Dense, Dropout, Flatten
 from keras.models import Model,Sequential
 from keras import optimizers
-from keras.callbacks import TensorBoard, ModelCheckpoint
+from keras.callbacks import TensorBoard, ModelCheckpoint, EarlyStopping
 import argparse
 from time import time
 
@@ -40,7 +40,7 @@ def parse_args():
     ap.add_argument("-v","--val_dir",type=str, required=True,help="(required) the validation data directory")
     ap.add_argument("-n","--num_class",type=int, default=2,help="(required) number of classes to be trained")
     ap.add_argument("-r","--img_size",type=int, default=224, help="image width/height size")
-    ap.add_argument("-m","--model_name",type=str, default='vgg16', help="model name")
+    ap.add_argument("-m","--model_name",type=str, default='vgg19', help="model name")
     ap.add_argument("-s","--suffix",type=str, default='laioffer', help="suffix for model name model name")
     ap.add_argument("-b","--batch_size",type=int, default=16, help="training batch size")
     ap.add_argument("-e","--epochs", type=int, default=30, help="training epochs")
@@ -64,11 +64,11 @@ def init_model(args):
     print('loading the model and the pre-trained weights...')
 
     # load base model
-    if args.model_name == 'vgg16':
-        base_model = vgg16.VGG16(include_top=False, weights='imagenet', input_shape = (224,224,3)) # need specify input_shape
+    if args.model_name == 'vgg19':
+        base_model = vgg19.VGG19(include_top=False, weights='imagenet', input_shape = (224,224,3)) # need specify input_shape
         # this preprocess_input is the default preprocess func for given network, you can change it or implement your own 
         # use inception_v3 preprocess for vgg16, it seems that it works better than vgg16.preprocess_input
-        preprocess_input = vgg16.preprocess_input
+        preprocess_input = vgg19.preprocess_input
     elif args.model_name == 'inception_v3':
         base_model = inception_v3.InceptionV3(include_top=False, weights='imagenet', input_shape = (224,224,3)) # need specify input_shape
         preprocess_input = inception_v3.preprocess_input
@@ -121,11 +121,12 @@ def init_model(args):
 
     # added some customized layers for your own data
     x = base_model.output
-    if args.model_name == 'vgg16':
-        x = Flatten(name='flatten')(x)
-        x = Dense(512, activation='relu', name='fc1-pretrain')(x)
+    if args.model_name == 'vgg19':
+        # x = Flatten(name='flatten')(x)
+        x = GlobalAveragePooling2D(name='avg_pool')(x)
+        # x = Dense(512, activation='relu', name='fc1-pretrain')(x)
         x = Dense(256, activation='relu', name='fc2-pretrain')(x)
-        x = Dropout(0.5, name='dropout')(x)
+        x = Dropout(0.3, name='dropout')(x)
     elif args.model_name == 'inception_v3':
         x = GlobalAveragePooling2D(name='avg_pool')(x)
         x = Dense(256, activation='relu', name='fc1-pretrain')(x)
@@ -161,7 +162,8 @@ def train(model, train_generator, validation_generator, args):
     # visualize the training process
     tensorboard = TensorBoard(log_dir="logs/{}_pretrain_{}".format(args.model_name, time()), histogram_freq=0, write_graph=True)
     checkpoint = ModelCheckpoint(pretrain_model_name, monitor='val_acc', verbose=1, save_best_only=True, save_weights_only=False, mode='auto', period=1)
-    callbacks_list = [checkpoint, tensorboard]
+    earlystopping = EarlyStopping(monitor='acc', patience=5)
+    callbacks_list = [checkpoint, tensorboard, earlystopping]
 
     model.fit_generator(
         train_generator,
@@ -184,7 +186,7 @@ def fine_tune(model, train_generator, validation_generator, args):
     return:
     """
     # for specific architectures, define number of trainable layers
-    if args.model_name == 'vgg16':
+    if args.model_name == 'vgg19':
         trainable_layers = 6
     elif args.model_name == 'inception_v3':
         trainable_layers = 35
@@ -200,7 +202,8 @@ def fine_tune(model, train_generator, validation_generator, args):
     finetune_model_name = 'finetuned_{}_{}_{}_{}.h5'.format(args.model_name, args.num_class, args.epochs, args.suffix)
     tensorboard = TensorBoard(log_dir="logs/{}_finetune_{}".format(args.model_name, time()), histogram_freq=0, write_graph=True)
     checkpoint = ModelCheckpoint(finetune_model_name, monitor='val_acc', verbose=1, save_best_only=True, save_weights_only=False, mode='auto', period=1)
-    callbacks_list = [checkpoint, tensorboard]
+    earlystopping = EarlyStopping(monitor='acc', patience=5)
+    callbacks_list = [checkpoint, tensorboard, earlystopping]
 
     model.compile(loss="categorical_crossentropy", optimizer=optimizers.SGD(lr=0.0001, momentum=0.9),metrics=["accuracy"])
 
