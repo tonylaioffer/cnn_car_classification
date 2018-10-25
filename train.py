@@ -39,7 +39,7 @@ def parse_args():
     ap.add_argument("-v","--val_dir",type=str, required=True,help="(required) the validation data directory")
     ap.add_argument("-n","--num_class",type=int, default=2,help="(required) number of classes to be trained")
     ap.add_argument("-r","--img_size",type=int, default=224, help="image width/height size")
-    ap.add_argument("-m","--model_name",type=str, default='vgg16', help="model name")
+    ap.add_argument("-m","--model_name",type=str, default='vgg19', help="model name")
     ap.add_argument("-s","--suffix",type=str, default='laioffer', help="suffix for model name model name")
     ap.add_argument("-b","--batch_size",type=int, default=16, help="training batch size")
     ap.add_argument("-e","--epochs", type=int, default=30, help="training epochs")
@@ -63,11 +63,10 @@ def init_model(args):
     print('loading the model and the pre-trained weights...')
 
     # load base model
-    if args.model_name == 'vgg16':
-        base_model = vgg16.VGG16(include_top=False, weights='imagenet', input_shape = (224,224,3)) # need specify input_shape
+    if args.model_name == 'vgg19':
+        base_model = vgg19.VGG19(include_top=False, weights='imagenet', input_shape = (224,224,3)) # need specify input_shape
         # this preprocess_input is the default preprocess func for given network, you can change it or implement your own 
-        # use inception_v3 preprocess for vgg16, it seems that it works better than vgg16.preprocess_input
-        preprocess_input = inception_v3.preprocess_input 
+        preprocess_input = vgg19.preprocess_input
 
     # initalize training image data generator
     # you can also specify data augmentation here
@@ -96,14 +95,12 @@ def init_model(args):
 
     train_generator = train_datagen.flow_from_directory(
         args.train_dir,
-        # color_mode='grayscale', # 'rgb'
         target_size=(args.img_size, args.img_size),
         batch_size=batch_size,
         class_mode='categorical')
 
     validation_generator = validation_datagen.flow_from_directory(
         args.val_dir,
-        # color_mode='grayscale',  # 'rgb'
         target_size=(args.img_size, args.img_size),
         batch_size=batch_size,
         class_mode='categorical')
@@ -114,11 +111,10 @@ def init_model(args):
 
     # added some customized layers for your own data
     x = base_model.output
-    if args.model_name == 'vgg16':
-        x = Flatten(name='flatten')(x)
-        x = Dense(512, activation='relu', name='fc1-pretrain')(x)
+    if args.model_name == 'vgg19':
+        x = GlobalAveragePooling2D(name='avg_pool')(x)
         x = Dense(256, activation='relu', name='fc2-pretrain')(x)
-        x = Dropout(0.5, name='dropout')(x)
+        x = Dropout(0.3, name='dropout')(x)
 
     # added softmax layer
     predictions = Dense(args.num_class, activation='softmax', name='predictions')(x)
@@ -157,7 +153,6 @@ def train(model, train_generator, validation_generator, args):
         callbacks = callbacks_list,
         validation_data = validation_generator,
         validation_steps=validationSteps)
-    # return model
 
 
 def fine_tune(model, train_generator, validation_generator, args):
@@ -171,7 +166,7 @@ def fine_tune(model, train_generator, validation_generator, args):
     return:
     """
     # for specific architectures, define number of trainable layers
-    if args.model_name == 'vgg16':
+    if args.model_name == 'vgg19':
         trainable_layers = 6
 
     for layer in model.layers[:-1*trainable_layers]:
@@ -196,7 +191,6 @@ def fine_tune(model, train_generator, validation_generator, args):
         callbacks = callbacks_list,
         validation_data = validation_generator,
         validation_steps=validationSteps)
-    # return model
 
 
 if __name__ == "__main__":
