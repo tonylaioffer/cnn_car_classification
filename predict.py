@@ -4,7 +4,7 @@ from keras.applications import vgg19
 from keras.applications import resnet50
 from keras.applications import inception_v3
 from keras.layers import GlobalAveragePooling2D, Dense, Dropout, Flatten
-from keras.models import Model,Sequential
+from keras.models import Model, Sequential, load_model
 from keras import optimizers 
 from keras.callbacks import TensorBoard, ModelCheckpoint
 
@@ -42,15 +42,15 @@ def parse_args():
     return args
 
 def predict(args):
-    # load base model
+    # load preprocess func
     if args.model_name == 'vgg19':
-        base_model = vgg19.VGG19(include_top=False, weights=None, input_shape = (224,224,3)) # need specify input_shape
+        # base_model = vgg19.VGG19(include_top=False, weights=None, input_shape = (224,224,3)) # need specify input_shape
         preprocess_input = vgg19.preprocess_input
     elif args.model_name == 'inception_v3':
-        base_model = inception_v3.InceptionV3(include_top=False, weights=None, input_shape = (224,224,3)) # need specify input_shape
+        # base_model = inception_v3.InceptionV3(include_top=False, weights=None, input_shape = (224,224,3)) # need specify input_shape
         preprocess_input = inception_v3.preprocess_input
     elif args.model_name == 'resnet50':
-        base_model = resnet50.ResNet50(include_top=False, weights=None, input_shape = (224,224,3)) # need specify input_shape
+        # base_model = resnet50.ResNet50(include_top=False, weights=None, input_shape = (224,224,3)) # need specify input_shape
         preprocess_input = resnet50.preprocess_input
 
     test_datagen = image.ImageDataGenerator(
@@ -63,34 +63,14 @@ def predict(args):
         shuffle=False,
         class_mode='categorical')
 
-    fnames = test_generator.filenames
-    label_map = test_generator.class_indices
+    # fnames = test_generator.filenames
+    # label_map = test_generator.class_indices
     true_labels = test_generator.classes
 
-    # add top
-    x = base_model.output
-    if args.model_name == 'vgg19':
-        x = GlobalAveragePooling2D(name='avg_pool')(x)
-        x = Dense(256, activation='relu', name='fc2-pretrain')(x)
-        x = Dropout(0.3, name='dropout')(x)
-    elif args.model_name == 'inception_v3':
-        x = GlobalAveragePooling2D(name='avg_pool')(x)
-        x = Dense(256, activation='relu', name='fc1-pretrain')(x)
-    elif args.model_name == 'resnet50':
-        x = GlobalAveragePooling2D(name='avg_pool')(x)
-        x = Dense(256, activation='relu', name='fc1-pretrain')(x)
+    # load model
+    model = load_model(args.model_weight_name)
 
-    predictions = Dense(args.num_class, activation='softmax', name='predictions')(x)
-
-    model = Model(inputs=base_model.input, outputs=predictions)
-    model.load_weights(args.model_weight_name)
-
-    # model.compile(loss="categorical_crossentropy", optimizer=optimizers.SGD(lr=0.0001, momentum=0.9),
-    #               metrics=["accuracy"])
-    # scores = model.evaluate_generator(test_generator, steps=len(fnames), verbose=1)
-    # print("Accuracy = ", scores[1])
-
-    predicted_label_probs = model.predict_generator(test_generator, steps=len(fnames), verbose=1)
+    predicted_label_probs = model.predict_generator(test_generator, verbose=1)
     predicted_labels = np.argmax(predicted_label_probs, axis=1)
 
     # print(confusion_matrix(true_labels, predicted_labels))

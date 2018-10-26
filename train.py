@@ -67,7 +67,6 @@ def init_model(args):
     if args.model_name == 'vgg19':
         base_model = vgg19.VGG19(include_top=False, weights='imagenet', input_shape = (224,224,3)) # need specify input_shape
         # this preprocess_input is the default preprocess func for given network, you can change it or implement your own 
-        # use inception_v3 preprocess for vgg16, it seems that it works better than vgg16.preprocess_input
         preprocess_input = vgg19.preprocess_input
     elif args.model_name == 'inception_v3':
         base_model = inception_v3.InceptionV3(include_top=False, weights='imagenet', input_shape = (224,224,3)) # need specify input_shape
@@ -103,14 +102,12 @@ def init_model(args):
 
     train_generator = train_datagen.flow_from_directory(
         args.train_dir,
-        # color_mode='grayscale', # 'rgb'
         target_size=(args.img_size, args.img_size),
         batch_size=batch_size,
         class_mode='categorical')
 
     validation_generator = validation_datagen.flow_from_directory(
         args.val_dir,
-        # color_mode='grayscale',  # 'rgb'
         target_size=(args.img_size, args.img_size),
         batch_size=batch_size,
         class_mode='categorical')
@@ -172,7 +169,6 @@ def train(model, train_generator, validation_generator, args):
         callbacks = callbacks_list,
         validation_data = validation_generator,
         validation_steps=validationSteps)
-    # return model
 
 
 def fine_tune(model, train_generator, validation_generator, args):
@@ -216,7 +212,6 @@ def fine_tune(model, train_generator, validation_generator, args):
         callbacks = callbacks_list,
         validation_data = validation_generator,
         validation_steps=validationSteps)
-    # return model
 
 
 if __name__ == "__main__":
